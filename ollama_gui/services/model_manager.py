@@ -37,6 +37,24 @@ class ModelManager:
             name = m.get("name", m.get("model", ""))
             size = m.get("size", 0)
             running_info = running_map.get(name)
+            
+            processor = None
+            if running_info:
+                vram = running_info.get("size_vram", 0)
+                model_size = running_info.get("size", size)
+                if model_size > 0:
+                    gpu_pct = int((vram / model_size) * 100)
+                    gpu_pct = min(100, max(0, gpu_pct))
+                    cpu_pct = 100 - gpu_pct
+                    if gpu_pct == 100:
+                        processor = "100% GPU"
+                    elif gpu_pct == 0:
+                        processor = "100% CPU"
+                    else:
+                        processor = f"{gpu_pct}% GPU / {cpu_pct}% CPU"
+                else:
+                    processor = "100% GPU" if vram > 0 else "100% CPU"
+
             models.append(
                 LocalModel(
                     name=name,
@@ -47,7 +65,7 @@ class ModelManager:
                     is_running=name in running_map,
                     vram_size=running_info.get("size_vram") if running_info else None,
                     expires_at=running_info.get("expires_at") if running_info else None,
-                    processor=running_info.get("processor") if running_info else None,
+                    processor=processor,
                 )
             )
         return models

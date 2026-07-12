@@ -79,6 +79,14 @@ class ChatView(ctk.CTkFrame):
         )
         self._sys_toggle_btn.pack(side="left", padx=4)
 
+        self._params_toggle_btn = ctk.CTkButton(
+            btn_frame, text="⚙ Model Settings", width=140, height=32,
+            corner_radius=8, font=ctk.CTkFont(size=12),
+            fg_color="#334155", hover_color="#475569",
+            command=self._toggle_params,
+        )
+        self._params_toggle_btn.pack(side="left", padx=4)
+
         # System prompt (hidden by default)
         self._sys_frame = ctk.CTkFrame(self, fg_color=self.CARD_BG, corner_radius=8)
         self._sys_visible = False
@@ -91,6 +99,43 @@ class ChatView(ctk.CTkFrame):
         )
         self._sys_entry.pack(fill="x", padx=12, pady=12)
         self._sys_entry.insert("1.0", "You are a senior software developer. Write clean, well-documented code.")
+
+        # Model settings parameters (hidden by default)
+        self._params_frame = ctk.CTkFrame(self, fg_color=self.CARD_BG, corner_radius=8)
+        self._params_visible = False
+        
+        self._params_frame.grid_columnconfigure(0, weight=1)
+        self._params_frame.grid_columnconfigure(1, weight=1)
+        self._params_frame.grid_columnconfigure(2, weight=1)
+        
+        # 1. num_ctx
+        ctx_frame = ctk.CTkFrame(self._params_frame, fg_color="transparent")
+        ctx_frame.grid(row=0, column=0, padx=12, pady=12, sticky="nsew")
+        ctk.CTkLabel(ctx_frame, text="Context Window (num_ctx)", font=ctk.CTkFont(size=11, weight="bold"), text_color=self.TEXT).pack(anchor="w")
+        self._ctx_var = ctk.StringVar(value="Default")
+        self._ctx_menu = ctk.CTkOptionMenu(ctx_frame, variable=self._ctx_var, values=["Default", "1024", "2048", "4096", "8192"], width=130, height=28, fg_color="#0f0f0f", button_color="#334155", font=ctk.CTkFont(size=12))
+        self._ctx_menu.pack(anchor="w", pady=(4, 0))
+        
+        # 2. temperature
+        temp_frame = ctk.CTkFrame(self._params_frame, fg_color="transparent")
+        temp_frame.grid(row=0, column=1, padx=12, pady=12, sticky="nsew")
+        temp_title_frame = ctk.CTkFrame(temp_frame, fg_color="transparent")
+        temp_title_frame.pack(fill="x")
+        ctk.CTkLabel(temp_title_frame, text="Temperature", font=ctk.CTkFont(size=11, weight="bold"), text_color=self.TEXT).pack(side="left")
+        self._temp_lbl = ctk.CTkLabel(temp_title_frame, text="0.8", font=ctk.CTkFont(size=11), text_color=self.BLUE)
+        self._temp_lbl.pack(side="right")
+        
+        self._temp_slider = ctk.CTkSlider(temp_frame, from_=0.0, to=2.0, number_of_steps=20, width=150, height=16, progress_color=self.BLUE, button_color=self.BLUE, fg_color="#334155", command=self._on_temp_slider)
+        self._temp_slider.set(0.8)
+        self._temp_slider.pack(anchor="w", pady=(6, 0))
+
+        # 3. num_predict
+        predict_frame = ctk.CTkFrame(self._params_frame, fg_color="transparent")
+        predict_frame.grid(row=0, column=2, padx=12, pady=12, sticky="nsew")
+        ctk.CTkLabel(predict_frame, text="Max Tokens (num_predict)", font=ctk.CTkFont(size=11, weight="bold"), text_color=self.TEXT).pack(anchor="w")
+        self._predict_var = ctk.StringVar(value="Default")
+        self._predict_menu = ctk.CTkOptionMenu(predict_frame, variable=self._predict_var, values=["Default", "256", "512", "1024", "2048", "4096"], width=130, height=28, fg_color="#0f0f0f", button_color="#334155", font=ctk.CTkFont(size=12))
+        self._predict_menu.pack(anchor="w", pady=(4, 0))
 
         # Chat history (scrollable)
         self._chat_area = ctk.CTkTextbox(
@@ -163,8 +208,23 @@ class ChatView(ctk.CTkFrame):
             self._sys_frame.grid_forget()
             self._sys_visible = False
         else:
+            if self._params_visible:
+                self._toggle_params()
             self._sys_frame.grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 8))
             self._sys_visible = True
+
+    def _toggle_params(self) -> None:
+        if self._params_visible:
+            self._params_frame.grid_forget()
+            self._params_visible = False
+        else:
+            if self._sys_visible:
+                self._toggle_system_prompt()
+            self._params_frame.grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 8))
+            self._params_visible = True
+
+    def _on_temp_slider(self, val: float) -> None:
+        self._temp_lbl.configure(text=f"{val:.1f}")
 
     def _clear_chat(self) -> None:
         self._chat_area.configure(state="normal")
@@ -208,6 +268,18 @@ class ChatView(ctk.CTkFrame):
             if not system:
                 system = None
 
+        # Get options parameters
+        options = {}
+        ctx_val = self._ctx_var.get()
+        if ctx_val != "Default":
+            options["num_ctx"] = int(ctx_val)
+            
+        predict_val = self._predict_var.get()
+        if predict_val != "Default":
+            options["num_predict"] = int(predict_val)
+            
+        options["temperature"] = float(self._temp_slider.get())
+
         self._generating = True
         self._send_btn.configure(state="disabled", text="...")
 
@@ -216,6 +288,7 @@ class ChatView(ctk.CTkFrame):
                 model=model,
                 prompt=prompt,
                 system=system,
+                options=options,
                 callback=self._on_token,
             )
 

@@ -43,11 +43,10 @@ class ModelCard(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=1)
 
         # Running indicator dot
-        dot_color = self.GREEN if self._model.is_running else "transparent"
         dot = ctk.CTkLabel(
-            self, text="●", width=20,
+            self, text="●" if self._model.is_running else " ", width=20,
             font=ctk.CTkFont(size=10),
-            text_color=dot_color,
+            text_color=self.GREEN,
         )
         dot.grid(row=0, column=0, rowspan=2, padx=(12, 0), sticky="w")
 

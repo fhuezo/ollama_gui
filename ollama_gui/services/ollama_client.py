@@ -191,6 +191,7 @@ class OllamaClient:
         model: str,
         prompt: str,
         system: str | None = None,
+        options: dict[str, Any] | None = None,
         callback: Callable[[str, bool], None] | None = None,
     ) -> str:
         """POST /api/generate — stream a completion.
@@ -205,6 +206,8 @@ class OllamaClient:
         }
         if system:
             payload["system"] = system
+        if options:
+            payload["options"] = options
         r = self._session.post(
             f"{self.base_url}/api/generate",
             json=payload,
